@@ -1,0 +1,7 @@
+[package]
+name = "strip-ansi-escapes"
+version = "0.1.0-pre"
+authors = ["Ted Mielczarek <ted@mielczarek.org>"]
+
+[dependencies]
+vte = "0.3.2"
