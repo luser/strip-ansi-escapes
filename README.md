@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/luser/strip-ansi-escapes.svg?branch=master)](https://travis-ci.org/luser/strip-ansi-escapes)  [![crates.io](https://img.shields.io/crates/v/strip-ansi-escapes.svg)](https://crates.io/crates/strip-ansi-escapes) [![](https://docs.rs/strip-ansi-escapes/badge.svg)](https://docs.rs/strip-ansi-escapes)
+![Continuous integration](https://github.com/luser/strip-ansi-escapes/workflows/Continuous%20integration/badge.svg)  [![crates.io](https://img.shields.io/crates/v/strip-ansi-escapes.svg)](https://crates.io/crates/strip-ansi-escapes) [![](https://docs.rs/strip-ansi-escapes/badge.svg)](https://docs.rs/strip-ansi-escapes)
 
 A crate for stripping ANSI escape sequences from byte sequences.
 
