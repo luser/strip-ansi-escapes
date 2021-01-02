@@ -146,7 +146,7 @@ where
     fn execute(&mut self, byte: u8) {
         // We only care about executing linefeeds.
         if byte == b'\n' {
-            self.err = writeln!(self.writer, "").err();
+            self.err = writeln!(self.writer).err();
         }
     }
     // Since we're not actually implementing a terminal, we just ignore everything else.
