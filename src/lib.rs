@@ -47,7 +47,8 @@ use vte::{Parser, Perform};
 /// ```
 
 pub struct Writer<W>
-    where W: Write,
+where
+    W: Write,
 {
     performer: Performer<W>,
     parser: Parser,
@@ -59,7 +60,8 @@ pub struct Writer<W>
 ///
 /// [mod]: index.html
 pub fn strip<T>(data: T) -> io::Result<Vec<u8>>
-    where T: AsRef<[u8]>,
+where
+    T: AsRef<[u8]>,
 {
     let c = Cursor::new(Vec::new());
     let mut writer = Writer::new(c);
@@ -68,14 +70,16 @@ pub fn strip<T>(data: T) -> io::Result<Vec<u8>>
 }
 
 struct Performer<W>
-    where W: Write,
+where
+    W: Write,
 {
     writer: LineWriter<W>,
     err: Option<io::Error>,
 }
 
 impl<W> Writer<W>
-    where W: Write,
+where
+    W: Write,
 {
     /// Create a new `Writer` that writes to `inner`.
     pub fn new(inner: W) -> Writer<W> {
@@ -100,10 +104,10 @@ impl<W> Writer<W>
 }
 
 impl<W> Write for Writer<W>
-    where W: Write,
+where
+    W: Write,
 {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize>
-    {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         for b in buf.iter() {
             self.parser.advance(&mut self.performer, *b)
         }
@@ -113,13 +117,18 @@ impl<W> Write for Writer<W>
         }
     }
 
-    fn flush(&mut self) -> io::Result<()> { self.performer.flush() }
+    fn flush(&mut self) -> io::Result<()> {
+        self.performer.flush()
+    }
 }
 
 impl<W> Performer<W>
-    where W: Write,
+where
+    W: Write,
 {
-    pub fn flush(&mut self) -> io::Result<()> { self.writer.flush() }
+    pub fn flush(&mut self) -> io::Result<()> {
+        self.writer.flush()
+    }
 
     pub fn into_inner(self) -> Result<W, IntoInnerError<LineWriter<W>>> {
         self.writer.into_inner()
@@ -127,7 +136,8 @@ impl<W> Performer<W>
 }
 
 impl<W> Perform for Performer<W>
-    where W: Write,
+where
+    W: Write,
 {
     fn print(&mut self, c: char) {
         // Just print bytes to the inner writer.
@@ -144,20 +154,8 @@ impl<W> Perform for Performer<W>
     fn put(&mut self, _byte: u8) {}
     fn unhook(&mut self) {}
     fn osc_dispatch(&mut self, _params: &[&[u8]]) {}
-    fn csi_dispatch(
-        &mut self,
-        _params: &[i64],
-        _intermediates: &[u8],
-        _ignore: bool,
-        _: char
-    ) {}
-    fn esc_dispatch(
-        &mut self,
-        _params: &[i64],
-        _intermediates: &[u8],
-        _ignore: bool,
-        _byte: u8
-    ) {}
+    fn csi_dispatch(&mut self, _params: &[i64], _intermediates: &[u8], _ignore: bool, _: char) {}
+    fn esc_dispatch(&mut self, _params: &[i64], _intermediates: &[u8], _ignore: bool, _byte: u8) {}
 }
 
 #[cfg(test)]
@@ -172,7 +170,12 @@ mod tests {
     #[test]
     fn readme_test() {
         let rustdoc = Path::new("rustdoc").with_extension(EXE_EXTENSION);
-        let readme = Path::new(file!()).parent().unwrap().parent().unwrap().join("README.md");
+        let readme = Path::new(file!())
+            .parent()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .join("README.md");
         let exe = env::current_exe().unwrap();
         let outdir = exe.parent().unwrap();
         let mut cmd = Command::new(rustdoc);
@@ -180,11 +183,15 @@ mod tests {
             .arg(&outdir)
             .arg(&readme);
         println!("{:?}", cmd);
-        let result = cmd.spawn()
+        let result = cmd
+            .spawn()
             .expect("Failed to spawn process")
             .wait()
             .expect("Failed to run process");
-        assert!(result.success(), "Failed to run rustdoc tests on README.md!");
+        assert!(
+            result.success(),
+            "Failed to run rustdoc tests on README.md!"
+        );
     }
 
     fn assert_parsed(input: &[u8], expected: &[u8]) {
