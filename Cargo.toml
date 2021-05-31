@@ -12,3 +12,6 @@ keywords = ["ansi", "escape", "terminal"]
 
 [dependencies]
 vte = "0.3.2"
+
+[dev-dependencies]
+executable-path = "1.0.0"
