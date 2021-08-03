@@ -101,6 +101,18 @@ where
     pub fn into_inner(self) -> Result<W, IntoInnerError<LineWriter<W>>> {
         self.performer.into_inner()
     }
+
+    /// Gets a reference to the underlying writer.
+    pub fn get_ref(&self) -> &W {
+        self.performer.writer.get_ref()
+    }
+
+    /// Gets a mutable reference to the underlying writer.
+    ///
+    /// Caution must be taken when calling methods on the mutable reference returned as extra writes could corrupt the output stream.
+    pub fn get_mut(&mut self) -> &mut W {
+        self.performer.writer.get_mut()
+    }
 }
 
 impl<W> Write for Writer<W>
