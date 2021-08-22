@@ -11,4 +11,4 @@ readme = "README.md"
 keywords = ["ansi", "escape", "terminal"]
 
 [dependencies]
-vte = "0.3.2"
+vte = "0.10"
