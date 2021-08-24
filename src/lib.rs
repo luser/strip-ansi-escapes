@@ -149,13 +149,6 @@ where
             self.err = writeln!(self.writer).err();
         }
     }
-    // Since we're not actually implementing a terminal, we just ignore everything else.
-    fn hook(&mut self, _params: &[i64], _intermediates: &[u8], _ignore: bool) {}
-    fn put(&mut self, _byte: u8) {}
-    fn unhook(&mut self) {}
-    fn osc_dispatch(&mut self, _params: &[&[u8]]) {}
-    fn csi_dispatch(&mut self, _params: &[i64], _intermediates: &[u8], _ignore: bool, _: char) {}
-    fn esc_dispatch(&mut self, _params: &[i64], _intermediates: &[u8], _ignore: bool, _byte: u8) {}
 }
 
 #[cfg(test)]
