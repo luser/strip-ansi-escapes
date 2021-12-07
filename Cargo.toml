@@ -11,7 +11,7 @@ readme = "README.md"
 keywords = ["ansi", "escape", "terminal"]
 
 [dependencies]
-vte = "0.10"
+vte = { version = "0.10", default-features = false }
 
 [dev-dependencies]
 doc-comment = "0.3"
