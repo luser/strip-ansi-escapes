@@ -18,7 +18,7 @@
 //!
 //! # fn foo() -> io::Result<()> {
 //! let bytes_with_colors = b"\x1b[32mfoo\x1b[m bar";
-//! let plain_bytes = strip_ansi_escapes::strip(&bytes_with_colors)?;
+//! let plain_bytes = strip_ansi_escapes::strip(&bytes_with_colors);
 //! io::stdout().write_all(&plain_bytes)?;
 //! # Ok(())
 //! # }
@@ -59,14 +59,18 @@ where
 /// See [the module documentation][mod] for an example.
 ///
 /// [mod]: index.html
-pub fn strip<T>(data: T) -> io::Result<Vec<u8>>
+pub fn strip<T>(data: T) -> Vec<u8>
 where
     T: AsRef<[u8]>,
 {
-    let c = Cursor::new(Vec::new());
-    let mut writer = Writer::new(c);
-    writer.write_all(data.as_ref())?;
-    Ok(writer.into_inner()?.into_inner())
+    fn strip_impl(data: &[u8]) -> io::Result<Vec<u8>> {
+        let c = Cursor::new(Vec::new());
+        let mut writer = Writer::new(c);
+        writer.write_all(data.as_ref())?;
+        Ok(writer.into_inner()?.into_inner())
+    }
+
+    strip_impl(data.as_ref()).expect("writing to a Cursor<Vec<u8>> cannot fail")
 }
 
 struct Performer<W>
@@ -162,7 +166,7 @@ mod tests {
     use super::*;
 
     fn assert_parsed(input: &[u8], expected: &[u8]) {
-        let bytes = strip(input).expect("Failed to strip escapes");
+        let bytes = strip(input);
         assert_eq!(bytes, expected);
     }
 
