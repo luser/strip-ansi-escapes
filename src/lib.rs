@@ -73,6 +73,24 @@ where
     strip_impl(data.as_ref()).expect("writing to a Cursor<Vec<u8>> cannot fail")
 }
 
+/// Strip ANSI escapes from `data` and return the remaining contents as a `String`.
+///
+/// # Example
+///
+/// ```
+/// let str_with_colors = "\x1b[32mfoo\x1b[m bar";
+/// let string_without_colors = strip_ansi_escapes::strip_str(string_with_colors);
+/// assert_eq!(string_without_colors, "foo bar");
+/// ```
+pub fn strip_str<T>(data: T) -> String
+where
+    T: AsRef<str>,
+{
+    let bytes = strip(data.as_ref());
+    String::from_utf8(bytes)
+        .expect("stripping ANSI escapes from a UTF-8 string always results in UTF-8")
+}
+
 struct Performer<W>
 where
     W: Write,
