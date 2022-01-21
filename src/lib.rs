@@ -79,7 +79,7 @@ where
 ///
 /// ```
 /// let str_with_colors = "\x1b[32mfoo\x1b[m bar";
-/// let string_without_colors = strip_ansi_escapes::strip_str(string_with_colors);
+/// let string_without_colors = strip_ansi_escapes::strip_str(str_with_colors);
 /// assert_eq!(string_without_colors, "foo bar");
 /// ```
 pub fn strip_str<T>(data: T) -> String
