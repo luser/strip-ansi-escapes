@@ -16,7 +16,7 @@ use std::io::{self, Write};
 
 fn work() -> io::Result<()> {
   let bytes_with_colors = b"\x1b[32mfoo\x1b[m bar";
-  let plain_bytes = strip_ansi_escapes::strip(&bytes_with_colors)?;
+  let plain_bytes = strip_ansi_escapes::strip(&bytes_with_colors);
   io::stdout().write_all(&plain_bytes)?;
   Ok(())
 }
