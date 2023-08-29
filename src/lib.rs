@@ -26,7 +26,7 @@
 
 extern crate vte;
 
-use std::io::{self, Cursor, IntoInnerError, LineWriter, Write};
+use std::io::{self, IntoInnerError, LineWriter, Write};
 use vte::{Parser, Perform};
 
 /// `Writer` wraps an underlying type that implements `Write`, stripping ANSI escape sequences
@@ -64,13 +64,12 @@ where
     T: AsRef<[u8]>,
 {
     fn strip_impl(data: &[u8]) -> io::Result<Vec<u8>> {
-        let c = Cursor::new(Vec::new());
-        let mut writer = Writer::new(c);
-        writer.write_all(data.as_ref())?;
-        Ok(writer.into_inner()?.into_inner())
+        let mut writer = Writer::new(Vec::new());
+        writer.write_all(data)?;
+        Ok(writer.into_inner()?)
     }
 
-    strip_impl(data.as_ref()).expect("writing to a Cursor<Vec<u8>> cannot fail")
+    strip_impl(data.as_ref()).expect("writing to a Vec<u8> cannot fail")
 }
 
 /// Strip ANSI escapes from `data` and return the remaining contents as a `String`.
