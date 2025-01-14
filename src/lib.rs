@@ -129,9 +129,7 @@ where
     W: Write,
 {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        for b in buf.iter() {
-            self.parser.advance(&mut self.performer, *b)
-        }
+        self.parser.advance(&mut self.performer, buf);
         match self.performer.err.take() {
             Some(e) => Err(e),
             None => Ok(buf.len()),
