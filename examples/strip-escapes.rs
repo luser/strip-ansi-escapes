@@ -1,7 +1,7 @@
 extern crate strip_ansi_escapes;
 
 use std::io;
-use strip_ansi_escapes::Writer;
+use strip_ansi_escapes::io::Writer;
 
 pub fn work() -> io::Result<()> {
     let stdin = io::stdin();
