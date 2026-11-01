@@ -1,22 +1,19 @@
-//! A crate for stripping ANSI escape sequences from byte sequences.
+//! A crate for stripping ANSI escape sequences from byte sequences or UTF-8 strings.
 //!
 //! This can be used to take output from a program that includes escape sequences and write
 //! it somewhere that does not easily support them, such as a log file.
 //!
 //! The simplest interface provided is the [`strip`] function, which takes a byte slice and returns
-//! a `Vec` of bytes with escape sequences removed. For writing bytes directly to a writer, you
-//! may prefer using the [`Writer`] struct, which implements `Write` and strips escape sequences
-//! as they are written.
-//!
-//! [`strip`]: fn.strip.html
-//! [`Writer`]: struct.Writer.html
+//! a `Vec` of bytes with escape sequences removed. For writing bytes directly to a writer, you may
+//! prefer using the [`io::Writer`] struct, which implements [`std::io::Write`] and strips escape
+//! sequences as they are written.
 //!
 //! # Example
 //!
 //! ```
-//! use std::io::{self, Write};
+//! use std::io::{self, Write as _};
 //!
-//! # fn foo() -> io::Result<()> {
+//! # fn work() -> io::Result<()> {
 //! let bytes_with_colors = b"\x1b[32mfoo\x1b[m bar";
 //! let plain_bytes = strip_ansi_escapes::strip(&bytes_with_colors);
 //! io::stdout().write_all(&plain_bytes)?;
@@ -26,45 +23,138 @@
 
 extern crate vte;
 
-use std::io::{self, IntoInnerError, LineWriter, Write};
 use vte::{Parser, Perform};
 
-/// `Writer` wraps an underlying type that implements `Write`, stripping ANSI escape sequences
-/// from bytes written to it before passing them to the underlying writer.
-///
-/// # Example
-/// ```
-/// use std::io::{self, Write};
-/// use strip_ansi_escapes::Writer;
-///
-/// # fn foo() -> io::Result<()> {
-/// let bytes_with_colors = b"\x1b[32mfoo\x1b[m bar";
-/// let mut writer = Writer::new(io::stdout());
-/// // Only `foo bar` will be written to stdout
-/// writer.write_all(bytes_with_colors)?;
-/// # Ok(())
-/// # }
-/// ```
+pub use self::io::Writer;
 
-pub struct Writer<W>
-where
-    W: Write,
-{
-    performer: Performer<W>,
-    parser: Parser,
+/// Stripping ANSI escape sequences while writing a byte stream to a type implementing
+/// [`std::io::Write`].  The [`io::Writer`] type is also exposed from the top level of this crate.
+pub mod io {
+    use std::io::{self, IntoInnerError, LineWriter};
+
+    use super::WriterImpl;
+
+    /// `Writer` wraps an underlying type that implements [`std::io::Write`], stripping ANSI escape
+    /// sequences from bytes written to it before passing them to the underlying writer.
+    ///
+    /// # Example
+    /// ```
+    /// use std::io::{self, Write as _};
+    /// use strip_ansi_escapes::io::Writer;
+    ///
+    /// # fn work() -> io::Result<()> {
+    /// let bytes_with_colors = b"\x1b[32mfoo\x1b[m bar";
+    /// let mut writer = Writer::new(io::stdout());
+    /// // Only `foo bar` will be written to stdout
+    /// writer.write_all(bytes_with_colors)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub struct Writer<W>(WriterImpl<LineWriter<W>, io::Error>)
+    where
+        W: io::Write;
+
+    impl<W> Writer<W>
+    where
+        W: io::Write,
+    {
+        /// Create a new `Writer` that writes to `inner`.
+        pub fn new(inner: W) -> Self {
+            Self(WriterImpl::new(LineWriter::new(inner)))
+        }
+
+        /// Unwraps this `Writer`, returning the underlying writer.
+        ///
+        /// The internal buffer is written out before returning the writer, which
+        /// may produce an [`IntoInnerError`].
+        pub fn into_inner(self) -> Result<W, IntoInnerError<LineWriter<W>>> {
+            self.0.performer.writer.into_inner()
+        }
+    }
+
+    impl<W> io::Write for Writer<W>
+    where
+        W: io::Write,
+    {
+        fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+            self.0.parser.advance(&mut self.0.performer, buf);
+            match self.0.performer.err.take() {
+                Some(e) => Err(e),
+                None => Ok(buf.len()),
+            }
+        }
+
+        fn flush(&mut self) -> io::Result<()> {
+            self.0.performer.writer.flush()
+        }
+    }
 }
 
-/// Strip ANSI escapes from `data` and return the remaining bytes as a `Vec<u8>`.
+/// Stripping ANSI escape sequences while writing a UTF-8 stream to a type implementing
+/// [`std::fmt::Write`].
+pub mod fmt {
+    use std::fmt;
+
+    use super::WriterImpl;
+
+    /// `Writer` wraps an underlying type that implements [`std::fmt::Write`], stripping ANSI escape
+    /// sequences from bytes written to it before passing them to the underlying writer.
+    ///
+    /// # Example
+    /// ```
+    /// use std::fmt::{self, Write as _};
+    /// use strip_ansi_escapes::fmt::Writer;
+    ///
+    /// # fn work() -> fmt::Result {
+    /// let str_with_colors = "\x1b[32mfoo\x1b[m bar";
+    /// // Only `foo bar` will be written to stdout
+    /// print!("{}", fmt::from_fn(|f| Writer::new(f).write_str(str_with_colors)));
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub struct Writer<W>(WriterImpl<W, fmt::Error>)
+    where
+        W: fmt::Write;
+
+    impl<W> Writer<W>
+    where
+        W: fmt::Write,
+    {
+        /// Create a new `Writer` that writes to `inner`.
+        pub fn new(inner: W) -> Self {
+            Self(WriterImpl::new(inner))
+        }
+
+        /// Unwraps this `Writer`, returning the underlying writer.
+        pub fn into_inner(self) -> W {
+            self.0.performer.writer
+        }
+    }
+
+    impl<W> fmt::Write for Writer<W>
+    where
+        W: fmt::Write,
+    {
+        fn write_str(&mut self, s: &str) -> fmt::Result {
+            self.0.parser.advance(&mut self.0.performer, s.as_bytes());
+            match self.0.performer.err.take() {
+                Some(e) => Err(e),
+                None => Ok(()),
+            }
+        }
+    }
+}
+
+/// Strip ANSI escapes from `data` and return the remaining bytes as a [`Vec<u8>`].
 ///
-/// See [the module documentation][mod] for an example.
-///
-/// [mod]: index.html
+/// See [the module documentation][self] for an example.
 pub fn strip<T>(data: T) -> Vec<u8>
 where
     T: AsRef<[u8]>,
 {
-    fn strip_impl(data: &[u8]) -> io::Result<Vec<u8>> {
-        let mut writer = Writer::new(Vec::new());
+    fn strip_impl(data: &[u8]) -> std::io::Result<Vec<u8>> {
+        use std::io::Write as _;
+        let mut writer = io::Writer::new(Vec::new());
         writer.write_all(data)?;
         Ok(writer.into_inner()?)
     }
@@ -72,7 +162,7 @@ where
     strip_impl(data.as_ref()).expect("writing to a Vec<u8> cannot fail")
 }
 
-/// Strip ANSI escapes from `data` and return the remaining contents as a `String`.
+/// Strip ANSI escapes from `data` and return the remaining contents as a [`String`].
 ///
 /// # Example
 ///
@@ -85,78 +175,59 @@ pub fn strip_str<T>(data: T) -> String
 where
     T: AsRef<str>,
 {
-    let bytes = strip(data.as_ref());
-    String::from_utf8(bytes)
-        .expect("stripping ANSI escapes from a UTF-8 string always results in UTF-8")
+    fn strip_impl(data: &str) -> Result<String, std::fmt::Error> {
+        use std::fmt::Write as _;
+        let mut writer = fmt::Writer::new(String::new());
+        writer.write_str(data)?;
+        Ok(writer.into_inner())
+    }
+
+    strip_impl(data.as_ref()).expect("writing to a String cannot fail")
 }
 
-struct Performer<W>
-where
-    W: Write,
-{
-    writer: LineWriter<W>,
-    err: Option<io::Error>,
+/// The implementation behind both [`io::Writer`] and [`fmt::Writer`].
+struct WriterImpl<W, E> {
+    performer: Performer<W, E>,
+    parser: Parser,
 }
 
-impl<W> Writer<W>
-where
-    W: Write,
-{
-    /// Create a new `Writer` that writes to `inner`.
-    pub fn new(inner: W) -> Writer<W> {
-        Writer {
+struct Performer<W, E> {
+    writer: W,
+    err: Option<E>,
+}
+
+impl<W, E> WriterImpl<W, E> {
+    /// Create a new `WriterImpl` that writes to `inner`.
+    fn new(inner: W) -> Self {
+        WriterImpl {
             performer: Performer {
-                writer: LineWriter::new(inner),
+                writer: inner,
                 err: None,
             },
             parser: Parser::new(),
         }
     }
-
-    /// Unwraps this `Writer`, returning the underlying writer.
-    ///
-    /// The internal buffer is written out before returning the writer, which
-    /// may produce an [`IntoInnerError`].
-    ///
-    /// [IntoInnerError]: https://doc.rust-lang.org/std/io/struct.IntoInnerError.html
-    pub fn into_inner(self) -> Result<W, IntoInnerError<LineWriter<W>>> {
-        self.performer.into_inner()
-    }
 }
 
-impl<W> Write for Writer<W>
+impl<W> Perform for Performer<W, std::io::Error>
 where
-    W: Write,
+    W: std::io::Write,
 {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        self.parser.advance(&mut self.performer, buf);
-        match self.performer.err.take() {
-            Some(e) => Err(e),
-            None => Ok(buf.len()),
+    fn print(&mut self, c: char) {
+        // Just print bytes to the inner writer.
+        self.err = write!(self.writer, "{}", c).err();
+    }
+    fn execute(&mut self, byte: u8) {
+        // We only care about executing linefeeds.
+        if byte == b'\n' {
+            self.err = writeln!(self.writer).err();
         }
     }
-
-    fn flush(&mut self) -> io::Result<()> {
-        self.performer.flush()
-    }
 }
 
-impl<W> Performer<W>
+impl<W> Perform for Performer<W, std::fmt::Error>
 where
-    W: Write,
-{
-    pub fn flush(&mut self) -> io::Result<()> {
-        self.writer.flush()
-    }
-
-    pub fn into_inner(self) -> Result<W, IntoInnerError<LineWriter<W>>> {
-        self.writer.into_inner()
-    }
-}
-
-impl<W> Perform for Performer<W>
-where
-    W: Write,
+    W: std::fmt::Write,
 {
     fn print(&mut self, c: char) {
         // Just print bytes to the inner writer.

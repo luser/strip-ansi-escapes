@@ -26,13 +26,13 @@ fn main() {
 }
 ```
 
-For writing directly to a writer, the `Writer` struct may be preferable.
+For writing directly to a writer, the `io::Writer` struct may be preferable.
 
 ```rust
 extern crate strip_ansi_escapes;
 
-use std::io::{self, Write};
-use strip_ansi_escapes::Writer;
+use std::io::{self, Write as _};
+use strip_ansi_escapes::io::Writer;
 
 fn work() -> io::Result<()> {
   let bytes_with_colors = b"\x1b[32mfoo\x1b[m bar";
@@ -46,6 +46,27 @@ fn main() {
     work().unwrap();
 }
 ```
+
+For writing during formatting, the `fmt::Writer` struct plays a similar role.
+
+```rust
+extern crate strip_ansi_escapes;
+
+use std::fmt::{self, Write as _};
+use strip_ansi_escapes::fmt::Writer;
+
+fn work() -> fmt::Result {
+    let str_with_colors = "\x1b[32mfoo\x1b[m bar";
+    // Only `foo bar` will be written to stdout
+    print!("{}", fmt::from_fn(|f| Writer::new(f).write_str(str_with_colors)));
+    Ok(())
+}
+
+fn main() {
+    work().unwrap();
+}
+```
+
 
 # License
 
